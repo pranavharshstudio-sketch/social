@@ -397,6 +397,57 @@ public class AdvancedItemListAdapter extends RecyclerView.Adapter<AdvancedItemLi
 
         mTagSelectingTextview = new TagSelectingTextview();
     }
+    public void playVisibleVideo(RecyclerView recyclerView) {
+        RecyclerView.LayoutManager layoutManager = recyclerView.getLayoutManager();
+        if (!(layoutManager instanceof GridLayoutManager)) return;
+        GridLayoutManager gridLayoutManager = (GridLayoutManager) layoutManager;
+        int firstVisible = gridLayoutManager.findFirstVisibleItemPosition();
+        int lastVisible = gridLayoutManager.findLastVisibleItemPosition();
+
+        for (int i = firstVisible; i <= lastVisible; i++) {
+            ViewHolder holder = (ViewHolder) recyclerView.findViewHolderForAdapterPosition(i);
+            if (holder != null
+                    && holder.playerView != null
+                    && holder.playerView.getVisibility() == View.VISIBLE
+                    && items.get(i).getVideoUrl() != null
+                    && !items.get(i).getVideoUrl().isEmpty()) {
+                if (i != playingPosition) {
+                    startAutoPlay(holder, i, items.get(i).getVideoUrl());
+                }
+                return;
+            }
+        }
+        // If no video is visible, stop current video
+        stopCurrentPlayingVideo();
+    }
+
+    private void startAutoPlay(ViewHolder holder, int position, String videoUrl) {
+        stopCurrentPlayingVideo();
+
+        if (exoPlayer == null) {
+            exoPlayer = new SimpleExoPlayer.Builder(context).build();
+        }
+        holder.playerView.setPlayer(exoPlayer);
+        exoPlayer.setMediaItem(MediaItem.fromUri(videoUrl));
+        exoPlayer.prepare();
+        exoPlayer.setPlayWhenReady(true);
+        exoPlayer.setVolume(0f);
+
+        playingPosition = position;
+        playingPlayerView = holder.playerView;
+    }
+
+    private void stopCurrentPlayingVideo() {
+        if (playingPlayerView != null) {
+            playingPlayerView.setPlayer(null);
+        }
+        if (exoPlayer != null) {
+            exoPlayer.setPlayWhenReady(false);
+            exoPlayer.stop();
+        }
+        playingPosition = -1;
+        playingPlayerView = null;
+    }
 
     public AdvancedItemListAdapter(Context ctx, List<Item> items, int pageId) {
 
@@ -2293,7 +2344,7 @@ public class AdvancedItemListAdapter extends RecyclerView.Adapter<AdvancedItemLi
             }
         });
 
-        
+
         mDlgRecyclerView.setAdapter(itemsAdapter);
 
         mDlgRecyclerView.setNestedScrollingEnabled(true);
